@@ -7,15 +7,12 @@ import inspect
 import re
 import signal
 from enum import Enum
-from pprint import pprint
 
 from happy_python import HappyLog
 from happy_python import HappyPyException
-from happy_python.happy_log import HappyLogLevel
-from happy_python import get_exit_code_of_cmd
-from happy_python import get_exit_status_of_cmd
-from happy_python import execute_cmd
 from happy_python import dict_to_pretty_json
+from happy_python import execute_cmd
+from happy_python.happy_log import HappyLogLevel
 
 log = HappyLog.get_instance()
 __version__ = '0.0.1'
@@ -24,6 +21,15 @@ line_number = 0
 
 # 变量暂存区
 _var_tmp_storage_area = dict()
+
+
+def _replace_var(s: str):
+    tmp = s
+
+    for var_name, var_value in _var_tmp_storage_area.items():
+        tmp = tmp.replace('${%s}' % var_name, var_value)
+
+    return tmp
 
 
 def _output_message_builder(row_id: str, message: str, status: bool):
@@ -47,7 +53,7 @@ def _make_error_message_required(row_desc: str, col_name: str):
 class ColInfo(Enum):
     RowID = '编号'
     CmdType = '命令类型'
-    CmdLine = '命令行'
+    CmdLine = '命令'
     ReturnCode = '返回代码'
     ReturnType = '返回类型'
     DefaultValue = '默认值'
@@ -305,17 +311,23 @@ class RowHandler:
         log.var('row', row)
 
         row_id = row.row_id
-        message = row.message
+        message = _replace_var(row.message)
         log.var('row_id', row_id)
         log.var('message', message)
 
         var_name = row.var_name
-        var_value = row.default_value
+        var_value = _replace_var(row.default_value)
         log.var('var_name', var_name)
         log.var('var_value', var_value)
 
-        _var_tmp_storage_area[var_name] = var_value
-        log.debug(_output_message_builder(row_id, '设置常量', True))
+        if row.return_type == ReturnType.INT:
+            _var_tmp_storage_area[var_name] = int(var_value)
+        elif row.return_type == ReturnType.STR:
+            _var_tmp_storage_area[var_name] = var_value
+        else:
+            _var_tmp_storage_area[var_name] = var_value
+
+        log.info(_output_message_builder(row_id, message, True))
 
         log.exit_func(fn_name)
 
@@ -327,12 +339,11 @@ class RowHandler:
         log.var('row', row)
 
         row_id = row.row_id
-        message = row.message
+        message = _replace_var(row.message)
         log.var('row_id', row_id)
         log.var('message', message)
 
-        print(message)
-        log.debug(_output_message_builder(row_id, '打印提示信息', True))
+        log.info(_output_message_builder(row_id, message, True))
 
         log.exit_func(fn_name)
 
@@ -345,21 +356,21 @@ class RowHandler:
         log.var('row', row)
 
         row_id = row.row_id
-        message = row.message
+        message = _replace_var(row.message)
         log.var('row_id', row_id)
         log.var('message', message)
 
         env_name = row.var_name
-        env_value = row.default_value
+        env_value = _replace_var(row.default_value)
         log.var('env_name', env_name)
         log.var('env_value', env_value)
 
         try:
             os.environ[env_name] = env_value
-            log.debug(_output_message_builder(row_id, '设置环境变量', True))
+            log.info(_output_message_builder(row_id, message, True))
         except Exception as e:
             log.critical(e)
-            raise HappyPyException(_output_message_builder(row_id, '设置环境变量', False))
+            raise HappyPyException(_output_message_builder(row_id, message, False))
 
         log.exit_func(fn_name)
 
@@ -371,13 +382,13 @@ class RowHandler:
         log.var('row', row)
 
         row_id = row.row_id
-        message = row.message
+        message = _replace_var(row.message)
         log.var('row_id', row_id)
         log.var('message', message)
 
-        cmd_line = row.cmd_line
+        cmd_line = _replace_var(row.cmd_line)
         expected_return_code = int(row.return_code)
-        return_filter = row.return_filter
+        return_filter = _replace_var(row.return_filter)
         save_var_name = row.var_name
         log.var('cmd_line', cmd_line)
         log.var('expected_return_code', expected_return_code)
@@ -395,17 +406,19 @@ class RowHandler:
                 if m:
                     # 保存筛选结果到暂存变量
                     exec('_var_tmp_storage_area[\'%s\'] = \'%s\'' % (save_var_name, m.group(1)), globals())
-                    log.debug(_output_message_builder(row_id, '执行命令', True))
+                    log.info(_output_message_builder(row_id, message, True))
                 else:
-                    log.debug(_output_message_builder(row_id, '执行命令', False))
+                    log.error(cmd_line)
+                    log.info(_output_message_builder(row_id, message, False))
                     raise HappyPyException('在执行结果上匹配过滤器，匹配内容为空')
             else:
                 if save_var_name != NULL_VALUE:
                     _var_tmp_storage_area[save_var_name] = result
 
-                log.debug(_output_message_builder(row_id, '执行命令', True))
+                log.info(_output_message_builder(row_id, message, True))
         else:
-            log.debug(_output_message_builder(row_id, '执行命令', False))
+            log.error(cmd_line)
+            log.info(_output_message_builder(row_id, message, False))
             raise HappyPyException('执行命令返回代码（%s）与预期（%s）不符' % (return_code, expected_return_code))
 
         log.exit_func(fn_name)
@@ -418,7 +431,7 @@ class RowHandler:
         log.var('row', row)
 
         row_id = row.row_id
-        message = row.message
+        message = _replace_var(row.message)
         log.var('row_id', row_id)
         log.var('message', message)
 
@@ -490,7 +503,12 @@ def to_csv_row_obj(row: list) -> CsvRow:
     csv_row = CsvRow(row_id, cmd_type, cmd_line, return_code, return_type,
                      default_value, return_filter, var_name, message)
     row_validate_fun = ROW_VALIDATE_X_MAP.get(cmd_type)
-    row_validate_fun(csv_row)
+
+    if row_validate_fun:
+        row_validate_fun(csv_row)
+    else:
+        msg = '第%d行->%s：无效值"%s"，可选值为CONST_VAR、VAR、ENV和CMD' % (line_number, ColInfo.CmdType.value, row[1])
+        raise HappyPyException(msg)
 
     log.exit_func(fn_name)
     return csv_row
