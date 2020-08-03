@@ -7,6 +7,7 @@ import inspect
 import re
 import signal
 from enum import Enum
+from pprint import pprint
 
 from happy_python import HappyLog
 from happy_python import HappyPyException
@@ -285,16 +286,17 @@ class RowValidator:
         if row.cmd_line == NULL_VALUE:
             _make_error_message_required(row_desc, ColInfo.CmdLine.value)
 
-        if row.return_code == NULL_VALUE:
-            _make_error_message_required(row_desc, ColInfo.ReturnCode.value)
+        if row.return_code != NULL_VALUE:
+            _make_error_message(row_desc, ColInfo.ReturnCode.value, NULL_VALUE)
 
         # 忽略 row.default_value
         # 忽略 row.return_filter
 
-        # 设置了变量名时，必须设置返回类型
-        if row.var_name != NULL_VALUE:
-            if row.return_type == NULL_VALUE:
-                _make_error_message_required(row_desc, ColInfo.ReturnType.value)
+        if row.var_name == NULL_VALUE:
+            _make_error_message_required(row_desc, ColInfo.VarName.value)
+
+        if row.return_type == NULL_VALUE:
+            _make_error_message_required(row_desc, ColInfo.ReturnType.value)
 
         if row.message == NULL_VALUE:
             _make_error_message_required(row_desc, ColInfo.Message.value)
@@ -388,14 +390,16 @@ class RowHandler:
 
         cmd_line = _replace_var(row.cmd_line)
         expected_return_code = int(row.return_code)
+        expected_return_type = row.return_type
         return_filter = _replace_var(row.return_filter)
         save_var_name = row.var_name
         log.var('cmd_line', cmd_line)
         log.var('expected_return_code', expected_return_code)
+        log.var('expected_return_type', expected_return_type)
         log.var('return_filter', return_filter)
         log.var('save_var_name', save_var_name)
 
-        return_code, result = execute_cmd(cmd_line)
+        return_code, result = execute_cmd(cmd_line, remove_white_char='\n')
         log.var('return_code', return_code)
         log.var('result', result)
 
@@ -404,8 +408,12 @@ class RowHandler:
                 m = re.match(r'%s' % return_filter, result)
 
                 if m:
+                    value = m.group(1)
                     # 保存筛选结果到暂存变量
-                    exec('_var_tmp_storage_area[\'%s\'] = \'%s\'' % (save_var_name, m.group(1)), globals())
+                    if expected_return_type == ReturnType.INT:
+                        exec('_var_tmp_storage_area[\'%s\'] = %d' % (save_var_name, int(value)), globals())
+                    else:
+                        exec('_var_tmp_storage_area[\'%s\'] = \'%s\'' % (save_var_name, m.group(1)), globals())
                     log.info(_output_message_builder(row_id, message, True))
                 else:
                     log.error(cmd_line)
@@ -435,7 +443,44 @@ class RowHandler:
         log.var('row_id', row_id)
         log.var('message', message)
 
-        # TODO
+        cmd_line = _replace_var(row.cmd_line)
+        return_filter = _replace_var(row.return_filter)
+        save_var_name = row.var_name
+        expected_return_type = row.return_type
+        is_expected_return_int_type = expected_return_type == ReturnType.INT
+        expected_return_value = int(row.default_value) if expected_return_type == ReturnType.INT else row.default_value
+        log.var('cmd_line', cmd_line)
+        log.var('return_filter', return_filter)
+        log.var('save_var_name', save_var_name)
+        log.var('expected_return_type', expected_return_type)
+        log.var('is_expected_return_int_type', is_expected_return_int_type)
+        log.var('expected_return_value', expected_return_value)
+
+        if expected_return_type == ReturnType.INT:
+            statement = 'tmp = int(%s)' % cmd_line
+        else:
+            statement = 'tmp = %s' % cmd_line
+
+        log.var('statement', statement)
+
+        try:
+            exec(statement, locals())
+            result = locals().get('tmp')
+            result = int(result) if is_expected_return_int_type else str(result)
+
+            if expected_return_value == result:
+                log.info(_output_message_builder(row_id, message, True))
+
+                # 保存执行结果到暂存变量
+                if save_var_name != NULL_VALUE:
+                    _var_tmp_storage_area[save_var_name] = result
+            else:
+                log.info(_output_message_builder(row_id, message, False))
+                raise HappyPyException('返回值（%s）与预期（%s）不符' % (result, expected_return_value))
+        except Exception as e:
+            log.error(statement)
+            log.critical(e)
+            raise HappyPyException(_output_message_builder(row_id, message, False))
 
         log.exit_func(fn_name)
 
