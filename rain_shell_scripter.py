@@ -30,11 +30,19 @@ def _replace_var(s: str):
 
     # 从暂存区读取变量值
     for var_name, var_value in _var_tmp_storage_area.items():
-        tmp = tmp.replace('${%s}' % var_name, var_value)
+        var_expr = '${%s}' % var_name
+        index = tmp.find(var_expr)
+
+        if index != -1:
+            tmp = tmp.replace(var_expr, var_value)
 
     # 从环境变量中读取变量值
     for var_name, var_value in os.environ.items():
-        tmp = tmp.replace('${%s}' % var_name, var_value)
+        var_expr = '${%s}' % var_name
+        index = tmp.find(var_expr)
+
+        if index != -1:
+            tmp = tmp.replace(var_expr, var_value)
 
     return tmp
 
