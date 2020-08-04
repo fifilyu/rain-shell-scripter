@@ -8,7 +8,6 @@ import os
 import re
 import signal
 from enum import Enum
-from pprint import pprint
 
 from happy_python import HappyLog
 from happy_python import HappyPyException
@@ -23,28 +22,6 @@ line_number = 0
 
 # 变量暂存区
 _var_tmp_storage_area = dict()
-
-
-def _replace_var(s: str):
-    tmp = s
-
-    # 从暂存区读取变量值
-    for var_name, var_value in _var_tmp_storage_area.items():
-        var_expr = '${%s}' % var_name
-        index = tmp.find(var_expr)
-
-        if index != -1:
-            tmp = tmp.replace(var_expr, var_value)
-
-    # 从环境变量中读取变量值
-    for var_name, var_value in os.environ.items():
-        var_expr = '${%s}' % var_name
-        index = tmp.find(var_expr)
-
-        if index != -1:
-            tmp = tmp.replace(var_expr, var_value)
-
-    return tmp
 
 
 def _output_message_builder(row_id: str, message: str, status: bool):
@@ -63,6 +40,31 @@ def _make_error_message(row_desc: str, col_name: str, value_desc: str):
 def _make_error_message_required(row_desc: str, col_name: str):
     msg = '第%d行->%s命令类型的行，"%s"列需要指定值' % (line_number, row_desc, col_name)
     raise HappyPyException(msg)
+
+
+def _replace_var(row_id: str, s: str) -> (bool, str):
+    tmp = s
+    var_dict = {**_var_tmp_storage_area, **os.environ}
+
+    # 从暂存区读取变量值 & 从环境变量中读取变量值
+    for var_name, var_value in var_dict.items():
+        var_expr = '${%s}' % var_name
+        index = tmp.find(var_expr)
+
+        if index != -1:
+            if var_value == '' or var_value is None:
+                log.error('替换变量时出现空值：%s -> %s，type=%s' % (var_name, var_value, type(var_value)))
+                raise HappyPyException(_output_message_builder(row_id, tmp, False))
+
+            tmp = tmp.replace(var_expr, var_value)
+
+    m = re.match(r'.*(\${[a-zA-Z\d_]+}).*', tmp)
+
+    if m:
+        log.error('存在未替换的变量：%s' % m.group(1))
+        raise HappyPyException(_output_message_builder(row_id, tmp, False))
+
+    return tmp
 
 
 class ColInfo(Enum):
@@ -327,12 +329,12 @@ class RowHandler:
         log.var('row', row)
 
         row_id = row.row_id
-        message = _replace_var(row.message)
+        message = _replace_var(row_id, row.message)
         log.var('row_id', row_id)
         log.var('message', message)
 
         var_name = row.var_name
-        var_value = _replace_var(row.default_value)
+        var_value = _replace_var(row_id, row.default_value)
         log.var('var_name', var_name)
         log.var('var_value', var_value)
 
@@ -355,7 +357,7 @@ class RowHandler:
         log.var('row', row)
 
         row_id = row.row_id
-        message = _replace_var(row.message)
+        message = _replace_var(row_id, row.message)
         log.var('row_id', row_id)
         log.var('message', message)
 
@@ -372,12 +374,12 @@ class RowHandler:
         log.var('row', row)
 
         row_id = row.row_id
-        message = _replace_var(row.message)
+        message = _replace_var(row_id, row.message)
         log.var('row_id', row_id)
         log.var('message', message)
 
         env_name = row.var_name
-        env_value = _replace_var(row.default_value)
+        env_value = _replace_var(row_id, row.default_value)
         log.var('env_name', env_name)
         log.var('env_value', env_value)
 
@@ -398,14 +400,14 @@ class RowHandler:
         log.var('row', row)
 
         row_id = row.row_id
-        message = _replace_var(row.message)
+        message = _replace_var(row_id, row.message)
         log.var('row_id', row_id)
         log.var('message', message)
 
-        cmd_line = _replace_var(row.cmd_line)
+        cmd_line = _replace_var(row_id, row.cmd_line)
         expected_return_code = int(row.return_code)
         expected_return_type = row.return_type
-        return_filter = _replace_var(row.return_filter)
+        return_filter = _replace_var(row_id, row.return_filter)
         save_var_name = row.var_name
         log.var('cmd_line', cmd_line)
         log.var('expected_return_code', expected_return_code)
@@ -453,12 +455,12 @@ class RowHandler:
         log.var('row', row)
 
         row_id = row.row_id
-        message = _replace_var(row.message)
+        message = _replace_var(row_id, row.message)
         log.var('row_id', row_id)
         log.var('message', message)
 
-        cmd_line = _replace_var(row.cmd_line)
-        return_filter = _replace_var(row.return_filter)
+        cmd_line = _replace_var(row_id, row.cmd_line)
+        return_filter = _replace_var(row_id, row.return_filter)
         save_var_name = row.var_name
         expected_return_type = row.return_type
         is_expected_return_int_type = expected_return_type == ReturnType.INT
