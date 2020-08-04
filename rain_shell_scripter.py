@@ -4,6 +4,7 @@
 import argparse
 import csv
 import inspect
+import os
 import re
 import signal
 from enum import Enum
@@ -27,7 +28,12 @@ _var_tmp_storage_area = dict()
 def _replace_var(s: str):
     tmp = s
 
+    # 从暂存区读取变量值
     for var_name, var_value in _var_tmp_storage_area.items():
+        tmp = tmp.replace('${%s}' % var_name, var_value)
+
+    # 从环境变量中读取变量值
+    for var_name, var_value in os.environ.items():
         tmp = tmp.replace('${%s}' % var_name, var_value)
 
     return tmp
