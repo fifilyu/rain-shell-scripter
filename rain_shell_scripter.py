@@ -16,7 +16,7 @@ from happy_python import execute_cmd
 from happy_python.happy_log import HappyLogLevel
 
 log = HappyLog.get_instance()
-__version__ = '0.0.1'
+__version__ = '1.0.0'
 NULL_VALUE = 'NULL'
 line_number = 0
 
