@@ -607,7 +607,7 @@ def raining(csv_file: str):
 
 def main():
     global log
-    parser = argparse.ArgumentParser(prog='rain-shell-scripter',
+    parser = argparse.ArgumentParser(prog='rain_shell_scripter',
                                      description='用Python加持Linux Shell脚本，编辑CSV文件即可完美解决脚本中的返回值、错误处理、流程控制难题~',
                                      usage='%(prog)s -f|-l')
 
@@ -631,7 +631,7 @@ def main():
                         '--version',
                         help='显示版本信息',
                         action='version',
-                        version='%(prog)s v' + __version__)
+                        version='%(prog)s/v' + __version__)
 
     args = parser.parse_args()
     log.set_level(args.log_level)
