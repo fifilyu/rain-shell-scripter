@@ -16,7 +16,7 @@ from happy_python import execute_cmd
 from happy_python.happy_log import HappyLogLevel
 
 log = HappyLog.get_instance()
-__version__ = '1.0.1'
+__version__ = '1.0.2'
 NULL_VALUE = 'NULL'
 line_number = 0
 
@@ -33,12 +33,12 @@ def _is_alpha_num_underline_str(value: str):
 
 
 def _make_error_message(row_desc: str, col_name: str, value_desc: str):
-    msg = '第%d行->%s类型的行，"%s"列应为"%s"' % (line_number, row_desc, col_name, value_desc)
+    msg = '第%d行->%s模式的行，"%s"列应为"%s"' % (line_number, row_desc, col_name, value_desc)
     raise HappyPyException(msg)
 
 
 def _make_error_message_required(row_desc: str, col_name: str):
-    msg = '第%d行->%s类型的行，"%s"列需要指定值' % (line_number, row_desc, col_name)
+    msg = '第%d行->%s模式的行，"%s"列需要指定值' % (line_number, row_desc, col_name)
     raise HappyPyException(msg)
 
 
@@ -69,7 +69,7 @@ def _replace_var(row_id: str, s: str) -> (bool, str):
 
 class ColInfo(Enum):
     RowID = '编号'
-    CmdType = '类型'
+    ModeType = '模式'
     CmdLine = '命令'
     ReturnCode = '返回代码'
     ReturnType = '返回类型'
@@ -77,10 +77,10 @@ class ColInfo(Enum):
     ReturnFilter = '过滤器'
     VarName = '变量名'
     Message = '提示消息'
-    __order__ = 'RowID CmdType CmdLine ReturnCode ReturnType DefaultValue ReturnFilter VarName Message'
+    __order__ = 'RowID ModeType CmdLine ReturnCode ReturnType DefaultValue ReturnFilter VarName Message'
 
 
-class CmdType(Enum):
+class ModeType(Enum):
     CONST = 0
     VAR = 1
     ENV = 2
@@ -98,7 +98,7 @@ class ReturnType(Enum):
 class CsvRow:
     def __init__(self,
                  row_id: str,
-                 cmd_type: CmdType,
+                 mode_type: ModeType,
                  cmd_line: str,
                  return_code: int,
                  return_type: ReturnType,
@@ -107,7 +107,7 @@ class CsvRow:
                  var_name: str,
                  message: str):
         self.row_id = row_id
-        self.cmd_type: CmdType = cmd_type
+        self.mode_type: ModeType = mode_type
         self.cmd_line = cmd_line
         self.return_code = return_code
         self.return_type = return_type
@@ -126,12 +126,12 @@ class ColValidator:
             raise HappyPyException(msg)
 
     @staticmethod
-    def validate_cmd_type(value: str):
+    def validate_mode_type(value: str):
         try:
             # noinspection PyUnusedLocal
-            tmp = CmdType[value]
+            tmp = ModeType[value]
         except KeyError:
-            msg = '第%d行->%s：无效值"%s"，可选值为CONST_VAR、VAR、ENV和CMD' % (line_number, ColInfo.CmdType.value, value)
+            msg = '第%d行->%s：无效值"%s"，可选值为CONST_VAR、VAR、ENV和CMD' % (line_number, ColInfo.ModeType.value, value)
             raise HappyPyException(msg)
 
     @staticmethod
@@ -183,7 +183,7 @@ class ColValidator:
 class RowValidator:
     @staticmethod
     def validate_const_row(row: CsvRow):
-        assert row.cmd_type == CmdType.CONST
+        assert row.mode_type == ModeType.CONST
         row_desc = '常量'
 
         if row.cmd_line != NULL_VALUE:
@@ -209,7 +209,7 @@ class RowValidator:
 
     @staticmethod
     def validate_message_row(row: CsvRow):
-        assert row.cmd_type == CmdType.MESSAGE
+        assert row.mode_type == ModeType.MESSAGE
         row_desc = '消息'
 
         if row.cmd_line != NULL_VALUE:
@@ -235,7 +235,7 @@ class RowValidator:
 
     @staticmethod
     def validate_env_row(row: CsvRow):
-        assert row.cmd_type == CmdType.ENV
+        assert row.mode_type == ModeType.ENV
         row_desc = '环境变量'
 
         if row.cmd_line != NULL_VALUE:
@@ -261,7 +261,7 @@ class RowValidator:
 
     @staticmethod
     def validate_cmd_row(row: CsvRow):
-        assert row.cmd_type == CmdType.CMD
+        assert row.mode_type == ModeType.CMD
         row_desc = '命令'
 
         if row.cmd_line == NULL_VALUE:
@@ -296,7 +296,7 @@ class RowValidator:
 
     @staticmethod
     def validate_statement_row(row: CsvRow):
-        assert row.cmd_type == CmdType.STATEMENT
+        assert row.mode_type == ModeType.STATEMENT
         row_desc = '语句'
 
         if row.cmd_line == NULL_VALUE:
@@ -504,7 +504,7 @@ COL_SIZE = len(ColInfo)
 # 每列对应的值校验函数
 COL_VALIDATE_X_MAP = {
     ColInfo.RowID: ColValidator.validate_row_id,
-    ColInfo.CmdType: ColValidator.validate_cmd_type,
+    ColInfo.ModeType: ColValidator.validate_mode_type,
     ColInfo.CmdLine: ColValidator.validate_cmd_line,
     ColInfo.ReturnCode: ColValidator.validate_return_code,
     ColInfo.ReturnType: ColValidator.validate_return_type,
@@ -513,21 +513,21 @@ COL_VALIDATE_X_MAP = {
     ColInfo.VarName: ColValidator.validate_var_name,
     ColInfo.Message: ColValidator.validate_message,
 }
-# 每种类型的行逻辑校验函数
+# 每种模式的行逻辑校验函数
 ROW_VALIDATE_X_MAP = {
-    CmdType.CONST: RowValidator.validate_const_row,
-    CmdType.MESSAGE: RowValidator.validate_message_row,
-    CmdType.ENV: RowValidator.validate_env_row,
-    CmdType.CMD: RowValidator.validate_cmd_row,
-    CmdType.STATEMENT: RowValidator.validate_statement_row,
+    ModeType.CONST: RowValidator.validate_const_row,
+    ModeType.MESSAGE: RowValidator.validate_message_row,
+    ModeType.ENV: RowValidator.validate_env_row,
+    ModeType.CMD: RowValidator.validate_cmd_row,
+    ModeType.STATEMENT: RowValidator.validate_statement_row,
 }
-# 每种类型的行处理函数
+# 每种模式的行处理函数
 ROW_HANDLER_MAP = {
-    CmdType.CONST: RowHandler.const_handler,
-    CmdType.MESSAGE: RowHandler.message_handler,
-    CmdType.ENV: RowHandler.env_handler,
-    CmdType.CMD: RowHandler.cmd_handler,
-    CmdType.STATEMENT: RowHandler.statement_handler,
+    ModeType.CONST: RowHandler.const_handler,
+    ModeType.MESSAGE: RowHandler.message_handler,
+    ModeType.ENV: RowHandler.env_handler,
+    ModeType.CMD: RowHandler.cmd_handler,
+    ModeType.STATEMENT: RowHandler.statement_handler,
 }
 
 
@@ -550,7 +550,7 @@ def to_csv_row_obj(row: list) -> CsvRow:
         n += 1
 
     row_id: str = row[0]
-    cmd_type = CmdType[row[1]]
+    mode_type = ModeType[row[1]]
     cmd_line = row[2]
     return_code = row[3]
     return_type = ReturnType[row[4]]
@@ -559,14 +559,14 @@ def to_csv_row_obj(row: list) -> CsvRow:
     var_name = row[7]
     message = row[8]
 
-    csv_row = CsvRow(row_id, cmd_type, cmd_line, return_code, return_type,
+    csv_row = CsvRow(row_id, mode_type, cmd_line, return_code, return_type,
                      default_value, return_filter, var_name, message)
-    row_validate_fun = ROW_VALIDATE_X_MAP.get(cmd_type)
+    row_validate_fun = ROW_VALIDATE_X_MAP.get(mode_type)
 
     if row_validate_fun:
         row_validate_fun(csv_row)
     else:
-        msg = '第%d行->%s：无效值"%s"，可选值为CONST_VAR、VAR、ENV和CMD' % (line_number, ColInfo.CmdType.value, row[1])
+        msg = '第%d行->%s：无效值"%s"，可选值为CONST_VAR、VAR、ENV和CMD' % (line_number, ColInfo.ModeType.value, row[1])
         raise HappyPyException(msg)
 
     log.exit_func(fn_name)
@@ -589,7 +589,7 @@ def raining(csv_file: str):
                         continue
 
                     row_obj = to_csv_row_obj(row)
-                    handler = ROW_HANDLER_MAP.get(row_obj.cmd_type)
+                    handler = ROW_HANDLER_MAP.get(row_obj.mode_type)
                     handler(row_obj)
             except csv.Error as e:
                 msg = '解析CSV文件行时出现错误\n'
@@ -608,7 +608,7 @@ def raining(csv_file: str):
 def main():
     global log
     parser = argparse.ArgumentParser(prog='rain_shell_scripter',
-                                     description='用Python加持Linux Shell脚本，编辑CSV文件即可完美解决脚本中的返回值、错误处理、流程控制难题~',
+                                     description='用Python加持Linux Shell脚本，编写CSV文件即可完美解决脚本中的返回值、数值运算、错误处理、流程控制难题~',
                                      usage='%(prog)s -f|-l')
 
     parser.add_argument('-f',

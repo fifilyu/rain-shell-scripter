@@ -3,7 +3,7 @@
 """
     setup
     ~~~~
-    rain-shell-scripter 用Python加持Linux Shell脚本，编辑CSV文件即可完美解决脚本中的返回值、错误处理、流程控制难题~
+    rain-shell-scripter 用Python加持Linux Shell脚本，编写CSV文件即可完美解决脚本中的返回值、数值运算、错误处理、流程控制难题~
     :copyright: (c) 2020 by Fifi Lyu.
     :license: MIT, see LICENSE for more details.
 """
@@ -24,7 +24,7 @@ setup(
     license='MIT',
     author='Fifi Lyu',
     author_email='fifilyu@gmail.com',
-    description="用Python加持Linux Shell脚本，编辑CSV文件即可完美解决脚本中的返回值、错误处理、流程控制难题~",
+    description="用Python加持Linux Shell脚本，编写CSV文件即可完美解决脚本中的返回值、数值运算、错误处理、流程控制难题~",
     long_description=open('README.md', encoding='utf-8').read(),
     long_description_content_type="text/markdown",
     py_modules=['rain_shell_scripter'],
