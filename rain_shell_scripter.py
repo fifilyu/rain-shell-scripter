@@ -38,7 +38,7 @@ def _make_error_message(row_desc: str, col_name: str, value_desc: str):
 
 
 def _make_error_message_required(row_desc: str, col_name: str):
-    msg = '第%d行->%s命令类型的行，"%s"列需要指定值' % (line_number, row_desc, col_name)
+    msg = '第%d行->%s类型的行，"%s"列需要指定值' % (line_number, row_desc, col_name)
     raise HappyPyException(msg)
 
 
@@ -69,7 +69,7 @@ def _replace_var(row_id: str, s: str) -> (bool, str):
 
 class ColInfo(Enum):
     RowID = '编号'
-    CmdType = '命令类型'
+    CmdType = '类型'
     CmdLine = '命令'
     ReturnCode = '返回代码'
     ReturnType = '返回类型'
@@ -308,11 +308,9 @@ class RowValidator:
         # 忽略 row.default_value
         # 忽略 row.return_filter
 
-        if row.var_name == NULL_VALUE:
-            _make_error_message_required(row_desc, ColInfo.VarName.value)
-
-        if row.return_type == NULL_VALUE:
-            _make_error_message_required(row_desc, ColInfo.ReturnType.value)
+        if row.var_name != NULL_VALUE:
+            if row.return_type == NULL_VALUE:
+                _make_error_message_required(row_desc, ColInfo.ReturnType.value)
 
         if row.message == NULL_VALUE:
             _make_error_message_required(row_desc, ColInfo.Message.value)
