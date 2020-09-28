@@ -70,23 +70,25 @@ def _replace_var(row_id: str, s: str) -> (bool, str):
 class ColInfo(Enum):
     RowID = '编号'
     ModeType = '模式'
-    CmdLine = '命令'
+    Expr = '表达式'
     ReturnCode = '返回代码'
     ReturnType = '返回类型'
     DefaultValue = '默认值'
     ReturnFilter = '过滤器'
     VarName = '变量名'
     Message = '提示消息'
-    __order__ = 'RowID ModeType CmdLine ReturnCode ReturnType DefaultValue ReturnFilter VarName Message'
+    __order__ = 'RowID ModeType Expr ReturnCode ReturnType DefaultValue ReturnFilter VarName Message'
 
 
 class ModeType(Enum):
     CONST = 0
     VAR = 1
     ENV = 2
-    CMD = 3
+    RUN = 3
     MESSAGE = 4
     STATEMENT = 5
+    # 复制文件
+    COPY = 6
 
 
 class ReturnType(Enum):
@@ -99,7 +101,7 @@ class CsvRow:
     def __init__(self,
                  row_id: str,
                  mode_type: ModeType,
-                 cmd_line: str,
+                 expr_line: str,
                  return_code: int,
                  return_type: ReturnType,
                  default_value: str,
@@ -108,7 +110,7 @@ class CsvRow:
                  message: str):
         self.row_id = row_id
         self.mode_type: ModeType = mode_type
-        self.cmd_line = cmd_line
+        self.expr_line = expr_line
         self.return_code = return_code
         self.return_type = return_type
         self.default_value = default_value
@@ -131,13 +133,13 @@ class ColValidator:
             # noinspection PyUnusedLocal
             tmp = ModeType[value]
         except KeyError:
-            msg = '第%d行->%s：无效值"%s"，可选值为CONST_VAR、VAR、ENV和CMD' % (line_number, ColInfo.ModeType.value, value)
+            msg = '第%d行->%s：无效值"%s"，可选值为CONST_VAR、VAR、ENV和RUN' % (line_number, ColInfo.ModeType.value, value)
             raise HappyPyException(msg)
 
     @staticmethod
-    def validate_cmd_line(value: str):
+    def validate_expr_line(value: str):
         if not (value or value == NULL_VALUE):
-            msg = '第%d行->%s：无效值"%s"，可以为NULL或非字符串' % (line_number, ColInfo.CmdLine.value, value)
+            msg = '第%d行->%s：无效值"%s"，可以为NULL或非字符串' % (line_number, ColInfo.Expr.value, value)
             raise HappyPyException(msg)
 
     @staticmethod
@@ -186,8 +188,8 @@ class RowValidator:
         assert row.mode_type == ModeType.CONST
         row_desc = '常量'
 
-        if row.cmd_line != NULL_VALUE:
-            _make_error_message(row_desc, ColInfo.CmdLine.value, NULL_VALUE)
+        if row.expr_line != NULL_VALUE:
+            _make_error_message(row_desc, ColInfo.Expr.value, NULL_VALUE)
 
         if row.return_code != NULL_VALUE:
             _make_error_message(row_desc, ColInfo.ReturnCode.value, NULL_VALUE)
@@ -212,8 +214,8 @@ class RowValidator:
         assert row.mode_type == ModeType.MESSAGE
         row_desc = '消息'
 
-        if row.cmd_line != NULL_VALUE:
-            _make_error_message(row_desc, ColInfo.CmdLine.value, NULL_VALUE)
+        if row.expr_line != NULL_VALUE:
+            _make_error_message(row_desc, ColInfo.Expr.value, NULL_VALUE)
 
         if row.return_code != NULL_VALUE:
             _make_error_message(row_desc, ColInfo.ReturnCode.value, NULL_VALUE)
@@ -238,8 +240,8 @@ class RowValidator:
         assert row.mode_type == ModeType.ENV
         row_desc = '环境变量'
 
-        if row.cmd_line != NULL_VALUE:
-            _make_error_message(row_desc, ColInfo.CmdLine.value, NULL_VALUE)
+        if row.expr_line != NULL_VALUE:
+            _make_error_message(row_desc, ColInfo.Expr.value, NULL_VALUE)
 
         if row.return_code != NULL_VALUE:
             _make_error_message(row_desc, ColInfo.ReturnCode.value, NULL_VALUE)
@@ -260,12 +262,12 @@ class RowValidator:
             _make_error_message_required(row_desc, ColInfo.Message.value)
 
     @staticmethod
-    def validate_cmd_row(row: CsvRow):
-        assert row.mode_type == ModeType.CMD
-        row_desc = '命令'
+    def validate_expr_row(row: CsvRow):
+        assert row.mode_type == ModeType.RUN
+        row_desc = '表达式'
 
-        if row.cmd_line == NULL_VALUE:
-            _make_error_message_required(row_desc, ColInfo.CmdLine.value)
+        if row.expr_line == NULL_VALUE:
+            _make_error_message_required(row_desc, ColInfo.Expr.value)
 
         if row.return_code == NULL_VALUE:
             _make_error_message_required(row_desc, ColInfo.ReturnCode.value)
@@ -299,8 +301,8 @@ class RowValidator:
         assert row.mode_type == ModeType.STATEMENT
         row_desc = '语句'
 
-        if row.cmd_line == NULL_VALUE:
-            _make_error_message_required(row_desc, ColInfo.CmdLine.value)
+        if row.expr_line == NULL_VALUE:
+            _make_error_message_required(row_desc, ColInfo.Expr.value)
 
         if row.return_code != NULL_VALUE:
             _make_error_message(row_desc, ColInfo.ReturnCode.value, NULL_VALUE)
@@ -391,7 +393,7 @@ class RowHandler:
         log.exit_func(fn_name)
 
     @staticmethod
-    def cmd_handler(row: CsvRow):
+    def expr_handler(row: CsvRow):
         fn_name = inspect.stack()[0][3]
         log.enter_func(fn_name)
 
@@ -402,18 +404,18 @@ class RowHandler:
         log.var('row_id', row_id)
         log.var('message', message)
 
-        cmd_line = _replace_var(row_id, row.cmd_line)
+        expr_line = _replace_var(row_id, row.expr_line)
         expected_return_code = int(row.return_code)
         expected_return_type = row.return_type
         return_filter = _replace_var(row_id, row.return_filter)
         save_var_name = row.var_name
-        log.var('cmd_line', cmd_line)
+        log.var('expr_line', expr_line)
         log.var('expected_return_code', expected_return_code)
         log.var('expected_return_type', expected_return_type)
         log.var('return_filter', return_filter)
         log.var('save_var_name', save_var_name)
 
-        return_code, result = execute_cmd(cmd_line, remove_white_char='\n')
+        return_code, result = execute_cmd(expr_line, remove_white_char='\n')
         log.var('return_code', return_code)
         log.var('result', result)
 
@@ -430,7 +432,7 @@ class RowHandler:
                         exec('_var_tmp_storage_area[\'%s\'] = \'%s\'' % (save_var_name, m.group(1)), globals())
                     log.info(_output_message_builder(row_id, message, True))
                 else:
-                    log.error(cmd_line)
+                    log.error(expr_line)
                     log.info(_output_message_builder(row_id, message, False))
                     raise HappyPyException('在执行结果上匹配过滤器，匹配内容为空')
             else:
@@ -439,7 +441,7 @@ class RowHandler:
 
                 log.info(_output_message_builder(row_id, message, True))
         else:
-            log.error(cmd_line)
+            log.error(expr_line)
             log.info(_output_message_builder(row_id, message, False))
             raise HappyPyException('执行命令返回代码（%s）与预期（%s）不符' % (return_code, expected_return_code))
 
@@ -457,13 +459,13 @@ class RowHandler:
         log.var('row_id', row_id)
         log.var('message', message)
 
-        cmd_line = _replace_var(row_id, row.cmd_line)
+        expr_line = _replace_var(row_id, row.expr_line)
         return_filter = _replace_var(row_id, row.return_filter)
         save_var_name = row.var_name
         expected_return_type = row.return_type
         is_expected_return_int_type = expected_return_type == ReturnType.INT
         expected_return_value = int(row.default_value) if expected_return_type == ReturnType.INT else row.default_value
-        log.var('cmd_line', cmd_line)
+        log.var('expr_line', expr_line)
         log.var('return_filter', return_filter)
         log.var('save_var_name', save_var_name)
         log.var('expected_return_type', expected_return_type)
@@ -471,9 +473,9 @@ class RowHandler:
         log.var('expected_return_value', expected_return_value)
 
         if expected_return_type == ReturnType.INT:
-            statement = 'tmp = int(%s)' % cmd_line
+            statement = 'tmp = int(%s)' % expr_line
         else:
-            statement = 'tmp = %s' % cmd_line
+            statement = 'tmp = %s' % expr_line
 
         log.var('statement', statement)
 
@@ -505,7 +507,7 @@ COL_SIZE = len(ColInfo)
 COL_VALIDATE_X_MAP = {
     ColInfo.RowID: ColValidator.validate_row_id,
     ColInfo.ModeType: ColValidator.validate_mode_type,
-    ColInfo.CmdLine: ColValidator.validate_cmd_line,
+    ColInfo.Expr: ColValidator.validate_expr_line,
     ColInfo.ReturnCode: ColValidator.validate_return_code,
     ColInfo.ReturnType: ColValidator.validate_return_type,
     ColInfo.DefaultValue: ColValidator.validate_default_value,
@@ -518,7 +520,7 @@ ROW_VALIDATE_X_MAP = {
     ModeType.CONST: RowValidator.validate_const_row,
     ModeType.MESSAGE: RowValidator.validate_message_row,
     ModeType.ENV: RowValidator.validate_env_row,
-    ModeType.CMD: RowValidator.validate_cmd_row,
+    ModeType.RUN: RowValidator.validate_expr_row,
     ModeType.STATEMENT: RowValidator.validate_statement_row,
 }
 # 每种模式的行处理函数
@@ -526,7 +528,7 @@ ROW_HANDLER_MAP = {
     ModeType.CONST: RowHandler.const_handler,
     ModeType.MESSAGE: RowHandler.message_handler,
     ModeType.ENV: RowHandler.env_handler,
-    ModeType.CMD: RowHandler.cmd_handler,
+    ModeType.RUN: RowHandler.expr_handler,
     ModeType.STATEMENT: RowHandler.statement_handler,
 }
 
@@ -551,7 +553,7 @@ def to_csv_row_obj(row: list) -> CsvRow:
 
     row_id: str = row[0]
     mode_type = ModeType[row[1]]
-    cmd_line = row[2]
+    expr_line = row[2]
     return_code = row[3]
     return_type = ReturnType[row[4]]
     default_value = row[5]
@@ -559,14 +561,14 @@ def to_csv_row_obj(row: list) -> CsvRow:
     var_name = row[7]
     message = row[8]
 
-    csv_row = CsvRow(row_id, mode_type, cmd_line, return_code, return_type,
+    csv_row = CsvRow(row_id, mode_type, expr_line, return_code, return_type,
                      default_value, return_filter, var_name, message)
     row_validate_fun = ROW_VALIDATE_X_MAP.get(mode_type)
 
     if row_validate_fun:
         row_validate_fun(csv_row)
     else:
-        msg = '第%d行->%s：无效值"%s"，可选值为CONST_VAR、VAR、ENV和CMD' % (line_number, ColInfo.ModeType.value, row[1])
+        msg = '第%d行->%s：无效值"%s"，可选值为CONST_VAR、VAR、ENV和RUN' % (line_number, ColInfo.ModeType.value, row[1])
         raise HappyPyException(msg)
 
     log.exit_func(fn_name)
