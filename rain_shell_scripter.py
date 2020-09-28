@@ -133,7 +133,8 @@ class ColValidator:
             # noinspection PyUnusedLocal
             tmp = ModeType[value]
         except KeyError:
-            msg = '第%d行->%s：无效值"%s"，可选值为CONST_VAR、VAR、ENV和RUN' % (line_number, ColInfo.ModeType.value, value)
+            msg = '第%d行->%s：无效值"%s"，可选值为CONST、VAR、ENV、RUN、MESSAGE、STATEMENT、COPY' \
+                  % (line_number, ColInfo.ModeType.value, value)
             raise HappyPyException(msg)
 
     @staticmethod
@@ -568,7 +569,7 @@ def to_csv_row_obj(row: list) -> CsvRow:
     if row_validate_fun:
         row_validate_fun(csv_row)
     else:
-        msg = '第%d行->%s：无效值"%s"，可选值为CONST_VAR、VAR、ENV和RUN' % (line_number, ColInfo.ModeType.value, row[1])
+        msg = '第%d行->%s：无效值"%s"，可选值为CONST、VAR、ENV和RUN' % (line_number, ColInfo.ModeType.value, row[1])
         raise HappyPyException(msg)
 
     log.exit_func(fn_name)
