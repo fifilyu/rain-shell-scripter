@@ -8,6 +8,8 @@ import os
 import re
 import signal
 from enum import Enum
+from pathlib import Path
+from shutil import copytree, copyfile, SameFileError, copy
 
 from happy_python import HappyLog
 from happy_python import HappyPyException
@@ -16,7 +18,7 @@ from happy_python import execute_cmd
 from happy_python.happy_log import HappyLogLevel
 
 log = HappyLog.get_instance()
-__version__ = '1.0.3'
+__version__ = '1.1.0'
 NULL_VALUE = 'NULL'
 line_number = 0
 
@@ -318,6 +320,29 @@ class RowValidator:
         if row.message == NULL_VALUE:
             _make_error_message_required(row_desc, ColInfo.Message.value)
 
+    @staticmethod
+    def validate_copy_row(row: CsvRow):
+        assert row.mode_type == ModeType.COPY
+        row_desc = '复制'
+
+        if row.expr_line == NULL_VALUE:
+            _make_error_message_required(row_desc, ColInfo.Expr.value)
+
+        if row.return_code != NULL_VALUE:
+            _make_error_message(row_desc, ColInfo.ReturnCode.value, NULL_VALUE)
+
+        if row.default_value != NULL_VALUE:
+            _make_error_message(row_desc, ColInfo.DefaultValue.value, NULL_VALUE)
+
+        if row.return_filter != NULL_VALUE:
+            _make_error_message(row_desc, ColInfo.ReturnType.value, NULL_VALUE)
+
+        if row.var_name != NULL_VALUE:
+            _make_error_message_required(row_desc, ColInfo.VarName.value)
+
+        if row.message == NULL_VALUE:
+            _make_error_message_required(row_desc, ColInfo.Message.value)
+
 
 class RowHandler:
     @staticmethod
@@ -501,6 +526,51 @@ class RowHandler:
 
         log.exit_func(fn_name)
 
+    @staticmethod
+    def copy_handler(row: CsvRow):
+        fn_name = inspect.stack()[0][3]
+        log.enter_func(fn_name)
+
+        log.var('row', row)
+
+        row_id = row.row_id
+        message = _replace_var(row_id, row.message)
+        log.var('row_id', row_id)
+        log.var('message', message)
+
+        expr_line = _replace_var(row_id, row.expr_line)
+        log.var('expr_line', expr_line)
+
+        try:
+            src, dst = expr_line.split(' ')
+
+            src_path = Path(src)
+            dst_path = Path(dst)
+
+            if not src_path.exists():
+                raise HappyPyException(_output_message_builder(row_id, '源文件或目录不存在：%s' % src_path, False))
+
+            if dst_path.is_file() and src_path.is_dir():
+                raise HappyPyException(_output_message_builder(
+                    row_id, '不能将一个源目录（%s）复制到目标文件（%s）' % (src_path, dst_path), False))
+
+            if src_path.is_dir():
+                log.debug('复制源目录（%s）到目标目录（%s）' % (src_path, dst_path))
+                copytree(src, dst)
+            elif src_path.is_file() or src_path.is_symlink():
+                log.debug('复制源文件（%s）到目标文件或目录（%s）' % (src_path, dst_path))
+                copy(src, dst, follow_symlinks=True)
+
+            log.info(_output_message_builder(row_id, message, True))
+        except OSError as e:
+            log.critical(e)
+            raise HappyPyException(_output_message_builder(row_id, '执行复制操作时，出现错误', False))
+        except SameFileError as e:
+            log.critical(e)
+            raise HappyPyException(_output_message_builder(row_id, '源和目标指向同一个文件或目录', False))
+
+        log.exit_func(fn_name)
+
 
 # 列数量
 COL_SIZE = len(ColInfo)
@@ -523,6 +593,7 @@ ROW_VALIDATE_X_MAP = {
     ModeType.ENV: RowValidator.validate_env_row,
     ModeType.RUN: RowValidator.validate_expr_row,
     ModeType.STATEMENT: RowValidator.validate_statement_row,
+    ModeType.COPY: RowValidator.validate_copy_row,
 }
 # 每种模式的行处理函数
 ROW_HANDLER_MAP = {
@@ -531,6 +602,7 @@ ROW_HANDLER_MAP = {
     ModeType.ENV: RowHandler.env_handler,
     ModeType.RUN: RowHandler.expr_handler,
     ModeType.STATEMENT: RowHandler.statement_handler,
+    ModeType.COPY: RowHandler.copy_handler,
 }
 
 
