@@ -1,20 +1,20 @@
-编号,模式,表达式,返回代码,返回类型,返回值,过滤器,变量名,提示信息
-B00,CONST,NULL,NULL,STR,hello,NULL,PROJECT,设置项目名称
-B01,MESSAGE,NULL,NULL,NULL,NULL,NULL,NULL,开始......构建项目——${PROJECT}
-B02,RUN,pwd,0,STR,NULL,NULL,pwd,获取当前工作目录
-B03,ENV,NULL,NULL,NULL,${pwd},NULL,JAVA_HOME,"设置环境变量""WORK_DIR"""
-B04,RUN,mkdir -p target && echo -n OK > target/hello-1.0.0.jar,0,NULL,NULL,NULL,NULL,模拟->Maven构建项目——${PROJECT}
-B05,RUN,ls target/hello-*.jar,0,NULL,NULL,NULL,NULL,模拟->确认构建后存在target文件（JAR包）
-B06,RUN,basename target/hello-*.jar,0,STR,NULL,NULL,target_file,模拟->获取target文件名称
-B08,RUN,md5sum target/${target_file},0,NULL,NULL,^([\d\w]+) .*$,local_hash,模拟->本地环境-生成JAR包的哈希值
-B09,RUN,echo ${local_hash},0,NULL,NULL,NULL,remote_hash,模拟->目标环境-生成JAR包的哈希值
-B10,CONST,NULL,NULL,STR,e0aa021e21dddbd6d8cecec71e9cf564,NULL,expected_hash,期望的哈希值
-B11,STATEMENT,'${local_hash}' == '${expected_hash}',NULL,INT,1,NULL,NULL,模拟->对比JAR包的哈希值
-B12,STATEMENT,'${local_hash}' == '${expected_hash}',NULL,INT,1,NULL,ret_val1,模拟->对比JAR包的哈希值
-B13,STATEMENT,'a' if True else 'b',NULL,NULL,NULL,NULL,ret_val2,模拟->对比JAR包的哈希值
-B14,COPY,target/hello-1.0.0.jar target/hello-1.0.0.zip,NULL,NULL,NULL,NULL,NULL,复制文件测试1
-B15,COPY,target target1,NULL,NULL,NULL,NULL,NULL,复制文件测试2
-B16,RUN,rm -f target1/hello-1.0.0.jar,0,NULL,NULL,NULL,NULL,删除文件
-B17,COPY,target/hello-1.0.0.jar target1/,NULL,NULL,NULL,NULL,NULL,复制文件测试2
-B18,RUN,rm -rf target/ target1/,0,NULL,NULL,NULL,NULL,模拟->目标环境-删除构建目录
-B19,MESSAGE,NULL,NULL,NULL,NULL,NULL,NULL,结束......构建项目——${PROJECT}
+模式,表达式,返回代码,返回类型,返回值,过滤器,变量名,提示信息
+CONST,NULL,NULL,STR,hello,NULL,PROJECT,设置项目名称
+MESSAGE,NULL,NULL,NULL,NULL,NULL,NULL,开始......构建项目——${PROJECT}
+RUN,pwd,0,STR,NULL,NULL,pwd,获取当前工作目录
+ENV,NULL,NULL,NULL,${pwd},NULL,JAVA_HOME,"设置环境变量""WORK_DIR"""
+RUN,mkdir -p target && echo -n OK > target/hello-1.0.0.jar,0,NULL,NULL,NULL,NULL,模拟->Maven构建项目——${PROJECT}
+RUN,ls target/hello-*.jar,0,NULL,NULL,NULL,NULL,模拟->确认构建后存在target文件（JAR包）
+RUN,basename target/hello-*.jar,0,STR,NULL,NULL,target_file,模拟->获取target文件名称
+RUN,md5sum target/${target_file},0,NULL,NULL,^([\d\w]+) .*$,local_hash,模拟->本地环境-生成JAR包的哈希值
+RUN,echo ${local_hash},0,NULL,NULL,NULL,remote_hash,模拟->目标环境-生成JAR包的哈希值
+CONST,NULL,NULL,STR,e0aa021e21dddbd6d8cecec71e9cf564,NULL,expected_hash,期望的哈希值
+STATEMENT,'${local_hash}' == '${expected_hash}',NULL,INT,1,NULL,NULL,模拟->对比JAR包的哈希值
+STATEMENT,'${local_hash}' == '${expected_hash}',NULL,INT,1,NULL,ret_val1,模拟->对比JAR包的哈希值
+STATEMENT,'a' if True else 'b',NULL,NULL,NULL,NULL,ret_val2,模拟->对比JAR包的哈希值
+COPY,target/hello-1.0.0.jar target/hello-1.0.0.zip,NULL,NULL,NULL,NULL,NULL,复制文件测试1
+COPY,target target1,NULL,NULL,NULL,NULL,NULL,复制文件测试2
+RUN,rm -f target1/hello-1.0.0.jar,0,NULL,NULL,NULL,NULL,删除文件
+COPY,target/hello-1.0.0.jar target1/,NULL,NULL,NULL,NULL,NULL,复制文件测试2
+RUN,rm -rf target/ target1/,0,NULL,NULL,NULL,NULL,模拟->目标环境-删除构建目录
+MESSAGE,NULL,NULL,NULL,NULL,NULL,NULL,结束......构建项目——${PROJECT}

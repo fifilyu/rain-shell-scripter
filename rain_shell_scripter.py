@@ -9,7 +9,7 @@ import re
 import signal
 from enum import Enum
 from pathlib import Path
-from shutil import copytree, copyfile, SameFileError, copy
+from shutil import copytree, SameFileError, copy
 
 from happy_python import HappyLog
 from happy_python import HappyPyException
@@ -26,8 +26,12 @@ line_number = 0
 _var_tmp_storage_area = dict()
 
 
-def _output_message_builder(row_id: str, message: str, status: bool):
-    return '编号：%s -> %s...[ %s ]' % (row_id, message, ('OK' if status else 'FAILED'))
+def _output_message_builder(message: str, status: bool):
+    return '行号：%s -> %s...[ %s ]' % (line_number, message, ('OK' if status else 'FAILED'))
+
+
+def _output_message_builder_no_status(message: str):
+    return '行号：%s -> %s' % (line_number, message)
 
 
 def _is_alpha_num_underline_str(value: str):
@@ -44,7 +48,7 @@ def _make_error_message_required(row_desc: str, col_name: str):
     raise HappyPyException(msg)
 
 
-def _replace_var(row_id: str, s: str) -> (bool, str):
+def _replace_var(s: str) -> (bool, str):
     tmp = s
     var_dict = {**_var_tmp_storage_area, **os.environ}
 
@@ -56,7 +60,7 @@ def _replace_var(row_id: str, s: str) -> (bool, str):
         if index != -1:
             if var_value == '' or var_value is None:
                 log.error('替换变量时出现空值：%s -> %s，type=%s' % (var_name, var_value, type(var_value)))
-                raise HappyPyException(_output_message_builder(row_id, tmp, False))
+                raise HappyPyException(_output_message_builder(tmp, False))
 
             tmp = tmp.replace(var_expr, var_value)
 
@@ -64,13 +68,12 @@ def _replace_var(row_id: str, s: str) -> (bool, str):
 
     if m:
         log.error('存在未替换的变量：%s' % m.group(1))
-        raise HappyPyException(_output_message_builder(row_id, tmp, False))
+        raise HappyPyException(_output_message_builder(tmp, False))
 
     return tmp
 
 
 class ColInfo(Enum):
-    RowID = '编号'
     ModeType = '模式'
     Expr = '表达式'
     ReturnCode = '返回代码'
@@ -79,7 +82,7 @@ class ColInfo(Enum):
     ReturnFilter = '过滤器'
     VarName = '变量名'
     Message = '提示消息'
-    __order__ = 'RowID ModeType Expr ReturnCode ReturnType DefaultValue ReturnFilter VarName Message'
+    __order__ = 'ModeType Expr ReturnCode ReturnType DefaultValue ReturnFilter VarName Message'
 
 
 class ModeType(Enum):
@@ -101,7 +104,6 @@ class ReturnType(Enum):
 
 class CsvRow:
     def __init__(self,
-                 row_id: str,
                  mode_type: ModeType,
                  expr_line: str,
                  return_code: int,
@@ -110,7 +112,6 @@ class CsvRow:
                  return_filter: str,
                  var_name: str,
                  message: str):
-        self.row_id = row_id
         self.mode_type: ModeType = mode_type
         self.expr_line = expr_line
         self.return_code = return_code
@@ -123,12 +124,6 @@ class CsvRow:
 
 
 class ColValidator:
-    @staticmethod
-    def validate_row_id(value: str):
-        if not (value and (value == NULL_VALUE or _is_alpha_num_underline_str(value))):
-            msg = '第%d行->%s：无效值"%s"，只能由数字、字母和下划线组成' % (line_number, ColInfo.RowID.value, value)
-            raise HappyPyException(msg)
-
     @staticmethod
     def validate_mode_type(value: str):
         try:
@@ -311,7 +306,7 @@ class RowValidator:
             _make_error_message(row_desc, ColInfo.ReturnCode.value, NULL_VALUE)
 
         if row.return_filter != NULL_VALUE:
-            _make_error_message_required(row_desc, ColInfo.ReturnFilter.value, NULL_VALUE)
+            _make_error_message(row_desc, ColInfo.ReturnFilter.value, NULL_VALUE)
 
         if row.message == NULL_VALUE:
             _make_error_message_required(row_desc, ColInfo.Message.value)
@@ -350,13 +345,11 @@ class RowHandler:
 
         log.var('row', row)
 
-        row_id = row.row_id
-        message = _replace_var(row_id, row.message)
-        log.var('row_id', row_id)
+        message = _replace_var(row.message)
         log.var('message', message)
 
         var_name = row.var_name
-        var_value = _replace_var(row_id, row.default_value)
+        var_value = _replace_var(row.default_value)
         log.var('var_name', var_name)
         log.var('var_value', var_value)
 
@@ -367,7 +360,7 @@ class RowHandler:
         else:
             _var_tmp_storage_area[var_name] = var_value
 
-        log.info(_output_message_builder(row_id, message, True))
+        log.info(_output_message_builder(message, True))
 
         log.exit_func(fn_name)
 
@@ -378,12 +371,10 @@ class RowHandler:
 
         log.var('row', row)
 
-        row_id = row.row_id
-        message = _replace_var(row_id, row.message)
-        log.var('row_id', row_id)
+        message = _replace_var(row.message)
         log.var('message', message)
 
-        log.info(_output_message_builder(row_id, message, True))
+        log.info(_output_message_builder_no_status(message))
 
         log.exit_func(fn_name)
 
@@ -395,22 +386,20 @@ class RowHandler:
 
         log.var('row', row)
 
-        row_id = row.row_id
-        message = _replace_var(row_id, row.message)
-        log.var('row_id', row_id)
+        message = _replace_var(row.message)
         log.var('message', message)
 
         env_name = row.var_name
-        env_value = _replace_var(row_id, row.default_value)
+        env_value = _replace_var(row.default_value)
         log.var('env_name', env_name)
         log.var('env_value', env_value)
 
         try:
             os.environ[env_name] = env_value
-            log.info(_output_message_builder(row_id, message, True))
+            log.info(_output_message_builder(message, True))
         except Exception as e:
             log.critical(e)
-            raise HappyPyException(_output_message_builder(row_id, message, False))
+            raise HappyPyException(_output_message_builder(message, False))
 
         log.exit_func(fn_name)
 
@@ -421,15 +410,13 @@ class RowHandler:
 
         log.var('row', row)
 
-        row_id = row.row_id
-        message = _replace_var(row_id, row.message)
-        log.var('row_id', row_id)
+        message = _replace_var(row.message)
         log.var('message', message)
 
-        expr_line = _replace_var(row_id, row.expr_line)
+        expr_line = _replace_var(row.expr_line)
         expected_return_code = int(row.return_code)
         expected_return_type = row.return_type
-        return_filter = _replace_var(row_id, row.return_filter)
+        return_filter = _replace_var(row.return_filter)
         save_var_name = row.var_name
         log.var('expr_line', expr_line)
         log.var('expected_return_code', expected_return_code)
@@ -452,19 +439,19 @@ class RowHandler:
                         exec('_var_tmp_storage_area[\'%s\'] = %d' % (save_var_name, int(value)), globals())
                     else:
                         exec('_var_tmp_storage_area[\'%s\'] = \'%s\'' % (save_var_name, m.group(1)), globals())
-                    log.info(_output_message_builder(row_id, message, True))
+                    log.info(_output_message_builder(message, True))
                 else:
                     log.error(expr_line)
-                    log.info(_output_message_builder(row_id, message, False))
+                    log.info(_output_message_builder(message, False))
                     raise HappyPyException('在执行结果上匹配过滤器，匹配内容为空')
             else:
                 if save_var_name != NULL_VALUE:
                     _var_tmp_storage_area[save_var_name] = result
 
-                log.info(_output_message_builder(row_id, message, True))
+                log.info(_output_message_builder(message, True))
         else:
             log.error(expr_line)
-            log.info(_output_message_builder(row_id, message, False))
+            log.info(_output_message_builder(message, False))
             raise HappyPyException('执行命令返回代码（%s）与预期（%s）不符' % (return_code, expected_return_code))
 
         log.exit_func(fn_name)
@@ -476,13 +463,11 @@ class RowHandler:
 
         log.var('row', row)
 
-        row_id = row.row_id
-        message = _replace_var(row_id, row.message)
-        log.var('row_id', row_id)
+        message = _replace_var(row.message)
         log.var('message', message)
 
-        expr_line = _replace_var(row_id, row.expr_line)
-        return_filter = _replace_var(row_id, row.return_filter)
+        expr_line = _replace_var(row.expr_line)
+        return_filter = _replace_var(row.return_filter)
         save_var_name = row.var_name
         expected_return_type = row.return_type
         is_expected_return_int_type = expected_return_type == ReturnType.INT
@@ -510,13 +495,13 @@ class RowHandler:
                 result = int(result) if is_expected_return_int_type else str(result)
 
                 if expected_return_value == result:
-                    log.info(_output_message_builder(row_id, message, True))
+                    log.info(_output_message_builder(message, True))
 
                     # 保存执行结果到暂存变量
                     if save_var_name != NULL_VALUE:
                         _var_tmp_storage_area[save_var_name] = result
                 else:
-                    log.info(_output_message_builder(row_id, message, False))
+                    log.info(_output_message_builder(message, False))
                     raise HappyPyException('返回值（%s）与预期（%s）不符' % (result, expected_return_value))
             else:
                 log.debug('以赋值语句方式运行')
@@ -527,7 +512,7 @@ class RowHandler:
         except Exception as e:
             log.error(statement)
             log.critical(e)
-            raise HappyPyException(_output_message_builder(row_id, message, False))
+            raise HappyPyException(_output_message_builder(message, False))
 
         log.exit_func(fn_name)
 
@@ -538,12 +523,10 @@ class RowHandler:
 
         log.var('row', row)
 
-        row_id = row.row_id
-        message = _replace_var(row_id, row.message)
-        log.var('row_id', row_id)
+        message = _replace_var(row.message)
         log.var('message', message)
 
-        expr_line = _replace_var(row_id, row.expr_line)
+        expr_line = _replace_var(row.expr_line)
         log.var('expr_line', expr_line)
 
         try:
@@ -553,11 +536,11 @@ class RowHandler:
             dst_path = Path(dst)
 
             if not src_path.exists():
-                raise HappyPyException(_output_message_builder(row_id, '源文件或目录不存在：%s' % src_path, False))
+                raise HappyPyException(_output_message_builder('源文件或目录不存在：%s' % src_path, False))
 
             if dst_path.is_file() and src_path.is_dir():
                 raise HappyPyException(_output_message_builder(
-                    row_id, '不能将一个源目录（%s）复制到目标文件（%s）' % (src_path, dst_path), False))
+                    '不能将一个源目录（%s）复制到目标文件（%s）' % (src_path, dst_path), False))
 
             if src_path.is_dir():
                 log.debug('复制源目录（%s）到目标目录（%s）' % (src_path, dst_path))
@@ -566,13 +549,13 @@ class RowHandler:
                 log.debug('复制源文件（%s）到目标文件或目录（%s）' % (src_path, dst_path))
                 copy(src, dst, follow_symlinks=True)
 
-            log.info(_output_message_builder(row_id, message, True))
+            log.info(_output_message_builder(message, True))
         except OSError as e:
             log.critical(e)
-            raise HappyPyException(_output_message_builder(row_id, '执行复制操作时，出现错误', False))
+            raise HappyPyException(_output_message_builder('执行复制操作时，出现错误', False))
         except SameFileError as e:
             log.critical(e)
-            raise HappyPyException(_output_message_builder(row_id, '源和目标指向同一个文件或目录', False))
+            raise HappyPyException(_output_message_builder('源和目标指向同一个文件或目录', False))
 
         log.exit_func(fn_name)
 
@@ -581,7 +564,6 @@ class RowHandler:
 COL_SIZE = len(ColInfo)
 # 每列对应的值校验函数
 COL_VALIDATE_X_MAP = {
-    ColInfo.RowID: ColValidator.validate_row_id,
     ColInfo.ModeType: ColValidator.validate_mode_type,
     ColInfo.Expr: ColValidator.validate_expr_line,
     ColInfo.ReturnCode: ColValidator.validate_return_code,
@@ -629,24 +611,24 @@ def to_csv_row_obj(row: list) -> CsvRow:
         col_validate_fun(row[n])
         n += 1
 
-    row_id: str = row[0]
-    mode_type = ModeType[row[1]]
-    expr_line = row[2]
-    return_code = row[3]
-    return_type = ReturnType[row[4]]
-    default_value = row[5]
-    return_filter = row[6]
-    var_name = row[7]
-    message = row[8]
+    mode_type = ModeType[row[0]]
+    expr_line = row[1]
+    return_code = row[2]
+    return_type = ReturnType[row[3]]
+    default_value = row[4]
+    return_filter = row[5]
+    var_name = row[6]
+    message = row[7]
 
-    csv_row = CsvRow(row_id, mode_type, expr_line, return_code, return_type,
+    csv_row = CsvRow(mode_type, expr_line, return_code, return_type,
                      default_value, return_filter, var_name, message)
     row_validate_fun = ROW_VALIDATE_X_MAP.get(mode_type)
 
     if row_validate_fun:
         row_validate_fun(csv_row)
     else:
-        msg = '第%d行->%s：无效值"%s"，可选值为CONST、VAR、ENV和RUN' % (line_number, ColInfo.ModeType.value, row[1])
+        msg = '第%d行->%s：无效值"%s"，可选值为CONST、VAR、ENV、RUN、MESSAGE、STATEMENT、COPY' \
+              % (line_number, ColInfo.ModeType.value, row[1])
         raise HappyPyException(msg)
 
     log.exit_func(fn_name)
