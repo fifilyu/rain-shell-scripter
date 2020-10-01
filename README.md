@@ -48,7 +48,8 @@
     2020-10-01 19:04:54 13161 [INFO] 行号：17 -> 删除文件...[ OK ]
     2020-10-01 19:04:54 13161 [INFO] 行号：18 -> 复制文件测试2...[ OK ]
     2020-10-01 19:04:54 13161 [INFO] 行号：19 -> 模拟->目标环境-删除构建目录...[ OK ]
-    2020-10-01 19:04:54 13161 [INFO] 行号：20 -> 结束......构建项目——hello
+    2020-10-01 19:04:54 13161 [INFO] 行号：20 -> 忽略不存在的变量
+    2020-10-01 19:04:54 13161 [INFO] 行号：21 -> 结束......构建项目——hello
 
 或者以调试模式运行：
 
@@ -68,15 +69,8 @@
     ...
     ...
     ...
-    2020-10-01 19:11:56 13291 [INFO] 行号：19 -> 模拟->目标环境-删除构建目录...[ OK ]
-    2020-10-01 19:11:56 13291 [TRACE] Exit function: expr_handler
-    2020-10-01 19:11:56 13291 [TRACE] Enter function: to_csv_row_obj
-    2020-10-01 19:11:56 13291 [TRACE] row=['MESSAGE', 'NULL', 'NULL', 'NULL', 'NULL', 'NULL', 'NULL', '结束......构建项目——${PROJECT}']
-    2020-10-01 19:11:56 13291 [TRACE] Exit function: to_csv_row_obj
-    2020-10-01 19:11:56 13291 [TRACE] Enter function: message_handler
-    2020-10-01 19:11:56 13291 [TRACE] row=<__main__.CsvRow object at 0x7f66cfddd160>
     2020-10-01 19:11:56 13291 [TRACE] message=结束......构建项目——hello
-    2020-10-01 19:11:56 13291 [INFO] 行号：20 -> 结束......构建项目——hello
+    2020-10-01 19:11:56 13291 [INFO] 行号：21 -> 结束......构建项目——hello
     2020-10-01 19:11:56 13291 [TRACE] Exit function: message_handler
     2020-10-01 19:11:56 13291 [DEBUG] 变量暂存区：
     {
@@ -117,6 +111,7 @@ COPY,target target1,NULL,NULL,NULL,NULL,NULL,复制文件测试2
 RUN,rm -f target1/hello-1.0.0.jar,0,NULL,NULL,NULL,NULL,删除文件
 COPY,target/hello-1.0.0.jar target1/,NULL,NULL,NULL,NULL,NULL,复制文件测试3
 RUN,rm -rf target/ target1/,0,NULL,NULL,NULL,NULL,模拟->目标环境-删除构建目录
+MESSAGE,NULL,NULL,NULL,NULL,NULL,NULL,忽略不存在的变量${!tmp123}${!tmpabc}
 MESSAGE,NULL,NULL,NULL,NULL,NULL,NULL,结束......构建项目——${PROJECT}
 ```
 

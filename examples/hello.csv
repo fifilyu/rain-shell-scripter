@@ -17,4 +17,5 @@ COPY,target target1,NULL,NULL,NULL,NULL,NULL,复制文件测试2
 RUN,rm -f target1/hello-1.0.0.jar,0,NULL,NULL,NULL,NULL,删除文件
 COPY,target/hello-1.0.0.jar target1/,NULL,NULL,NULL,NULL,NULL,复制文件测试3
 RUN,rm -rf target/ target1/,0,NULL,NULL,NULL,NULL,模拟->目标环境-删除构建目录
+MESSAGE,NULL,NULL,NULL,NULL,NULL,NULL,忽略不存在的变量${!tmp123}${!tmpabc}
 MESSAGE,NULL,NULL,NULL,NULL,NULL,NULL,结束......构建项目——${PROJECT}

@@ -18,7 +18,7 @@ from happy_python import execute_cmd
 from happy_python.happy_log import HappyLogLevel
 
 log = HappyLog.get_instance()
-__version__ = '1.3.1'
+__version__ = '1.4.0'
 NULL_VALUE = 'NULL'
 line_number = 0
 
@@ -58,11 +58,21 @@ def _replace_var(s: str) -> (bool, str):
         index = tmp.find(var_expr)
 
         if index != -1:
+            # 非感叹号开头的变量，从变量树中查找
             if var_value == '' or var_value is None:
                 log.error('替换变量时出现空值：%s -> %s，type=%s' % (var_name, var_value, type(var_value)))
                 raise HappyPyException(_output_message_builder(tmp, False))
 
             tmp = tmp.replace(var_expr, var_value)
+
+    # 感叹号开头的变量，替换为空
+    while True:
+        m = re.match(r'.*(\${!?[a-zA-Z\d_]+}).*', tmp)
+
+        if m and m.group(1)[:3] == '${!':
+            tmp = tmp.replace(m.group(1), '')
+        else:
+            break
 
     m = re.match(r'.*(\${[a-zA-Z\d_]+}).*', tmp)
 
