@@ -18,7 +18,7 @@ from happy_python import execute_cmd
 from happy_python.happy_log import HappyLogLevel
 
 log = HappyLog.get_instance()
-__version__ = '1.3.0'
+__version__ = '1.3.1'
 NULL_VALUE = 'NULL'
 line_number = 0
 
@@ -505,6 +505,7 @@ class RowHandler:
                     raise HappyPyException('返回值（%s）与预期（%s）不符' % (result, expected_return_value))
             else:
                 log.debug('以赋值语句方式运行')
+                log.info(_output_message_builder(message, True))
 
                 # 保存执行结果到暂存变量
                 if save_var_name != NULL_VALUE:
