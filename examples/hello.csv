@@ -15,6 +15,6 @@ STATEMENT,'a' if True else 'b',NULL,NULL,NULL,NULL,ret_val2,模拟->对比JAR包
 COPY,target/hello-1.0.0.jar target/hello-1.0.0.zip,NULL,NULL,NULL,NULL,NULL,复制文件测试1
 COPY,target target1,NULL,NULL,NULL,NULL,NULL,复制文件测试2
 RUN,rm -f target1/hello-1.0.0.jar,0,NULL,NULL,NULL,NULL,删除文件
-COPY,target/hello-1.0.0.jar target1/,NULL,NULL,NULL,NULL,NULL,复制文件测试2
+COPY,target/hello-1.0.0.jar target1/,NULL,NULL,NULL,NULL,NULL,复制文件测试3
 RUN,rm -rf target/ target1/,0,NULL,NULL,NULL,NULL,模拟->目标环境-删除构建目录
 MESSAGE,NULL,NULL,NULL,NULL,NULL,NULL,结束......构建项目——${PROJECT}
