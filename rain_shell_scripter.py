@@ -18,7 +18,7 @@ from happy_python import execute_cmd
 from happy_python.happy_log import HappyLogLevel
 
 log = HappyLog.get_instance()
-__version__ = '1.1.0'
+__version__ = '1.2.0'
 NULL_VALUE = 'NULL'
 line_number = 0
 
@@ -310,12 +310,8 @@ class RowValidator:
         if row.return_code != NULL_VALUE:
             _make_error_message(row_desc, ColInfo.ReturnCode.value, NULL_VALUE)
 
-        # 忽略 row.default_value
-        # 忽略 row.return_filter
-
-        if row.var_name != NULL_VALUE:
-            if row.return_type == NULL_VALUE:
-                _make_error_message_required(row_desc, ColInfo.ReturnType.value)
+        if row.return_filter != NULL_VALUE:
+            _make_error_message_required(row_desc, ColInfo.ReturnFilter.value, NULL_VALUE)
 
         if row.message == NULL_VALUE:
             _make_error_message_required(row_desc, ColInfo.Message.value)
@@ -508,17 +504,26 @@ class RowHandler:
         try:
             exec(statement, locals())
             result = locals().get('tmp')
-            result = int(result) if is_expected_return_int_type else str(result)
 
-            if expected_return_value == result:
-                log.info(_output_message_builder(row_id, message, True))
+            if expected_return_type != ReturnType.NULL and expected_return_value != ReturnType.NULL:
+                log.debug('以判断语句方式运行')
+                result = int(result) if is_expected_return_int_type else str(result)
+
+                if expected_return_value == result:
+                    log.info(_output_message_builder(row_id, message, True))
+
+                    # 保存执行结果到暂存变量
+                    if save_var_name != NULL_VALUE:
+                        _var_tmp_storage_area[save_var_name] = result
+                else:
+                    log.info(_output_message_builder(row_id, message, False))
+                    raise HappyPyException('返回值（%s）与预期（%s）不符' % (result, expected_return_value))
+            else:
+                log.debug('以赋值语句方式运行')
 
                 # 保存执行结果到暂存变量
                 if save_var_name != NULL_VALUE:
                     _var_tmp_storage_area[save_var_name] = result
-            else:
-                log.info(_output_message_builder(row_id, message, False))
-                raise HappyPyException('返回值（%s）与预期（%s）不符' % (result, expected_return_value))
         except Exception as e:
             log.error(statement)
             log.critical(e)

@@ -10,9 +10,11 @@ B08,RUN,md5sum target/${target_file},0,NULL,NULL,^([\d\w]+) .*$,local_hash,模�
 B09,RUN,echo ${local_hash},0,NULL,NULL,NULL,remote_hash,模拟->目标环境-生成JAR包的哈希值
 B10,CONST,NULL,NULL,STR,e0aa021e21dddbd6d8cecec71e9cf564,NULL,expected_hash,期望的哈希值
 B11,STATEMENT,'${local_hash}' == '${expected_hash}',NULL,INT,1,NULL,NULL,模拟->对比JAR包的哈希值
-B12,COPY,target/hello-1.0.0.jar target/hello-1.0.0.zip,NULL,NULL,NULL,NULL,NULL,复制文件测试1
-B13,COPY,target target1,NULL,NULL,NULL,NULL,NULL,复制文件测试2
-B14,RUN,rm -f target1/hello-1.0.0.jar,0,NULL,NULL,NULL,NULL,删除文件
-B15,COPY,target/hello-1.0.0.jar target1/,NULL,NULL,NULL,NULL,NULL,复制文件测试2
-B16,RUN,rm -rf target/ target1/,0,NULL,NULL,NULL,NULL,模拟->目标环境-删除构建目录
-B17,MESSAGE,NULL,NULL,NULL,NULL,NULL,NULL,结束......构建项目——${PROJECT}
+B12,STATEMENT,'${local_hash}' == '${expected_hash}',NULL,INT,1,NULL,ret_val1,模拟->对比JAR包的哈希值
+B13,STATEMENT,'a' if True else 'b',NULL,NULL,NULL,NULL,ret_val2,模拟->对比JAR包的哈希值
+B14,COPY,target/hello-1.0.0.jar target/hello-1.0.0.zip,NULL,NULL,NULL,NULL,NULL,复制文件测试1
+B15,COPY,target target1,NULL,NULL,NULL,NULL,NULL,复制文件测试2
+B16,RUN,rm -f target1/hello-1.0.0.jar,0,NULL,NULL,NULL,NULL,删除文件
+B17,COPY,target/hello-1.0.0.jar target1/,NULL,NULL,NULL,NULL,NULL,复制文件测试2
+B18,RUN,rm -rf target/ target1/,0,NULL,NULL,NULL,NULL,模拟->目标环境-删除构建目录
+B19,MESSAGE,NULL,NULL,NULL,NULL,NULL,NULL,结束......构建项目——${PROJECT}
