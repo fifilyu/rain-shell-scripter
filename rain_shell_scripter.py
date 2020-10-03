@@ -18,7 +18,7 @@ from happy_python import execute_cmd
 from happy_python.happy_log import HappyLogLevel
 
 log = HappyLog.get_instance()
-__version__ = '1.4.0'
+__version__ = '1.4.1'
 NULL_VALUE = 'NULL'
 line_number = 0
 
@@ -270,9 +270,9 @@ class RowValidator:
             _make_error_message_required(row_desc, ColInfo.Message.value)
 
     @staticmethod
-    def validate_expr_row(row: CsvRow):
+    def validate_run_row(row: CsvRow):
         assert row.mode_type == ModeType.RUN
-        row_desc = '表达式'
+        row_desc = '命令'
 
         if row.expr_line == NULL_VALUE:
             _make_error_message_required(row_desc, ColInfo.Expr.value)
@@ -414,7 +414,7 @@ class RowHandler:
         log.exit_func(fn_name)
 
     @staticmethod
-    def expr_handler(row: CsvRow):
+    def run_handler(row: CsvRow):
         fn_name = inspect.stack()[0][3]
         log.enter_func(fn_name)
 
@@ -589,7 +589,7 @@ ROW_VALIDATE_X_MAP = {
     ModeType.CONST: RowValidator.validate_const_row,
     ModeType.MESSAGE: RowValidator.validate_message_row,
     ModeType.ENV: RowValidator.validate_env_row,
-    ModeType.RUN: RowValidator.validate_expr_row,
+    ModeType.RUN: RowValidator.validate_run_row,
     ModeType.STATEMENT: RowValidator.validate_statement_row,
     ModeType.COPY: RowValidator.validate_copy_row,
 }
@@ -598,7 +598,7 @@ ROW_HANDLER_MAP = {
     ModeType.CONST: RowHandler.const_handler,
     ModeType.MESSAGE: RowHandler.message_handler,
     ModeType.ENV: RowHandler.env_handler,
-    ModeType.RUN: RowHandler.expr_handler,
+    ModeType.RUN: RowHandler.run_handler,
     ModeType.STATEMENT: RowHandler.statement_handler,
     ModeType.COPY: RowHandler.copy_handler,
 }
