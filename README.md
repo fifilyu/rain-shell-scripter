@@ -96,7 +96,7 @@
 CONST,NULL,NULL,STR,hello,NULL,PROJECT,设置项目名称
 MESSAGE,NULL,NULL,NULL,NULL,NULL,NULL,开始......构建项目——${PROJECT}
 RUN,pwd,0,STR,NULL,NULL,pwd,获取当前工作目录
-ENV,NULL,NULL,NULL,${pwd},NULL,JAVA_HOME,"设置环境变量""WORK_DIR"""
+ENV,NULL,NULL,NULL,${pwd},NULL,WORK_DIR,"设置环境变量""WORK_DIR"""
 RUN,mkdir -p target && echo -n OK > target/hello-1.0.0.jar,0,NULL,NULL,NULL,NULL,模拟->Maven构建项目——${PROJECT}
 RUN,ls target/hello-*.jar,0,NULL,NULL,NULL,NULL,模拟->确认构建后存在target文件（JAR包）
 RUN,basename target/hello-*.jar,0,STR,NULL,NULL,target_file,模拟->获取target文件名称
